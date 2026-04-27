@@ -1,0 +1,4 @@
+Casual Leave: 12 days per year
+Sick Leave: 10 days per year
+Notice Period: 60 days
+Work From Home: 2 days per month with manager approval

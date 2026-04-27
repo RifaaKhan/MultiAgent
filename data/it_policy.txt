@@ -1,0 +1,3 @@
+Users can raise tickets for VPN, Outlook, laptop, printer and network issues
+Asset requests require manager approval
+Duplicate tickets should be avoided
