@@ -1,13 +1,39 @@
-# Python-generated files
+# 🐍 Python generated files
 __pycache__/
-*.py[oc]
+*.py[cod]
+*.pyo
+*.pyd
 build/
 dist/
 wheels/
-*.egg-info
-*.db
+*.egg-info/
 
-# Virtual environments
-.venv
+# 🧪 Virtual environments
+.venv/
+venv/
+env/
 
+# 🔐 Environment variables
 .env
+
+# 🗄️ Databases
+*.db
+*.sqlite3
+
+# 🧠 Vector DB (Chroma / embeddings)
+data/chroma_db/
+
+# 📄 Logs
+logs/
+*.log
+
+# ⚙️ OS files
+.DS_Store
+Thumbs.db
+
+# 🧩 IDE / Editor
+.vscode/
+.idea/
+
+# 📦 Dependency / lock files (optional)
+uv.lock
