@@ -1,3 +1,14 @@
-Users can raise tickets for VPN, Outlook, laptop, printer and network issues
-Asset requests require manager approval
-Duplicate tickets should be avoided
+IT Ticket Policy:
+Employees can raise IT tickets for laptop, VPN, Outlook, printer, network, and software issues.
+
+Ticket Priority Policy:
+IT tickets are assigned based on priority such as Low, Medium, High, and Critical.
+
+Duplicate Ticket Policy:
+Before creating a new ticket, the system checks whether the employee already has an open ticket for the same issue.
+
+Asset Request Policy:
+Employees can request assets such as laptop, monitor, keyboard, mouse, VPN token, and software license.
+
+Asset Approval Policy:
+Asset requests need manager approval and IT approval before fulfillment.

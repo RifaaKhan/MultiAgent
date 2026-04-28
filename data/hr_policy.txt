@@ -1,4 +1,14 @@
-Casual Leave: 12 days per year
-Sick Leave: 10 days per year
-Notice Period: 60 days
-Work From Home: 2 days per month with manager approval
+Casual Leave Policy:
+Employees get 12 casual leaves per year. Casual leave can be used for personal work, family needs, or short planned absences.
+
+Sick Leave Policy:
+Employees get 10 sick leaves per year. Sick leave can be used when an employee is unwell or needs medical rest.
+
+Notice Period Policy:
+The notice period for employees is 60 days. Employees must complete the notice period before leaving the organization unless management approves early release.
+
+Work From Home Policy:
+Employees can work from home 2 days per month with manager approval.
+
+Maternity Leave Policy:
+Maternity leave is available as per company policy and applicable government regulations.

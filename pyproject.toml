@@ -8,9 +8,13 @@ dependencies = [
     "chromadb>=1.5.8",
     "fastmcp>=3.2.4",
     "langchain>=1.2.15",
+    "langchain-google-genai>=4.2.2",
+    "langchain-groq>=1.1.2",
+    "langchain-openai>=1.2.1",
     "langgraph>=1.1.9",
     "langsmith>=0.7.37",
     "python-dotenv>=1.2.2",
     "requests>=2.33.1",
+    "sentence-transformers>=5.4.1",
     "streamlit>=1.56.0",
 ]
