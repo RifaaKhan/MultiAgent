@@ -15,6 +15,12 @@ Allowed intents:
 10. email
 11. analytics
 12. unknown
+13. capabilities
+14. show_pending_leaves
+15. add_employee
+16. show_employees
+17. view_records
+18. update_ticket
 
 Return ONLY valid JSON.
 
@@ -24,15 +30,45 @@ JSON format:
   "reason": ""
 }
 
-Rules:
-- If the user asks about HR/IT policy, choose policy_question.
-- If the user wants to apply leave, choose apply_leave.
+Important rules:
+- If the conversation context is about adding a new employee, continue choosing add_employee until the employee is created.
+- If the latest message contains only missing employee details like user ID, name, role, department, or email, and previous context was add employee, choose add_employee.
+- Do NOT choose email just because the message contains an email address.
+- Choose email only if the user asks to send, draft, generate, or notify by email.
+
+- If the user wants to approve or reject leave/asset requests, choose approval.
+- If Manager wants to approve/reject leave or asset requests, choose approval.
+- If HR Team wants to approve/reject leave requests, choose approval.
+- If Manager asks pending approvals, choose approval.
+- If HR Team asks pending approvals, choose approval.
+- If the user asks to show pending leaves, pending leave requests, leave approvals, or requests waiting for approval, choose show_pending_leaves.
+
+- If the user wants to take/apply/request leave for a date, choose apply_leave.
+- If the user says sick leave, casual leave, earned leave with a date, choose apply_leave.
+- If the user only asks about leave policy or leave rules, choose policy_question.
 - If the user asks leave balance, choose leave_balance.
 - If the user asks leave request status/history, choose leave_status.
 - If the user wants to cancel leave, choose cancel_leave.
+
 - If the user reports an IT issue, choose create_ticket.
-- If the user asks ticket status, choose ticket_status.
+- If the user asks ticket status or wants to view their own tickets, choose ticket_status.
+- If IT Team wants to close, resolve, reopen, or update an IT ticket, choose update_ticket.
+- If IT Team asks pending approvals, open tickets, open assets, or open requests, choose view_records.
+- If IT Team asks show all asset requests or all assets, choose view_records.
+
 - If the user requests laptop, monitor, keyboard, mouse, VPN token, or software license, choose asset_request.
-- If the user wants to approve or reject leave/asset, choose approval.
+- If the user wants to cancel an asset request, choose asset_request.
+
+- If the user asks to show all requests, all records, all leaves, all tickets, or all assets, choose view_records.
+- If the user asks to show/list/view all employees, choose show_employees.
+- If the user wants to add/create/register a new employee, choose add_employee.
+
+- If the user says hello, hi, hey, or asks how you can help, choose capabilities.
+- If the user says they are not well, sick, ill, have fever, doctor visit, or medical appointment, choose apply_leave.
+- If the user asks to show my applied leaves, my leaves, my leave requests, choose leave_status.
+- If the user asks to show all employee leaves, all leaves, all leave requests, choose view_records.
+- If the user asks to show all asset requests, all assets, all tickets, all records, choose view_records.
+
 - If the user asks dashboard/count/summary, choose analytics.
+- If the user asks what you can do, help, features, capabilities, or how you can assist, choose capabilities.
 - If unsure, choose unknown.

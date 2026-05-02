@@ -1,5 +1,4 @@
 import time
-from intent_utils import detect_intent_by_rules
 from typing import TypedDict, Optional, Any
 
 from langgraph.graph import StateGraph, END
@@ -12,7 +11,9 @@ from agents.hr_agent import run_hr_agent
 from agents.it_agent import run_it_agent
 from agents.rag_agent import run_rag_agent
 from agents.email_agent import generate_email_content
+from agents.admin_agent import run_admin_agent
 from agents.approval_agent import run_approval_agent
+from agents.records_agent import run_records_agent
 from middleware import (
     rate_limit_check,
     retry_llm_call,
@@ -34,6 +35,12 @@ class CopilotState(TypedDict, total=False):
     final_response: str
     error: Optional[str]
     start_time: float
+
+
+def get_latest_user_message(message: str) -> str:
+    if "Latest user message:" in message:
+        return message.split("Latest user message:")[-1].strip()
+    return message.strip()
 
 
 def load_user_node(state: CopilotState) -> CopilotState:
@@ -70,18 +77,55 @@ def rate_limit_node(state: CopilotState) -> CopilotState:
     }
 
 
-def detect_intent_node(state: CopilotState) -> CopilotState:
-    # Step 1: Try rule-based detection first to save API calls
-    rule_result = detect_intent_by_rules(state["message"])
+def admin_agent_node(state: CopilotState) -> CopilotState:
+    response = run_admin_agent(state["user"], state["message"])
 
-    if rule_result["intent"] != "unknown":
+    return {
+        **state,
+        "agent_used": "Admin Agent",
+        "tool_used": state["intent"],
+        "response": response,
+    }
+
+
+def records_agent_node(state: CopilotState) -> CopilotState:
+    response = run_records_agent(state["user"], state["message"])
+
+    return {
+        **state,
+        "agent_used": "Records Agent",
+        "tool_used": state["intent"],
+        "response": response,
+    }
+
+
+def detect_intent_node(state: CopilotState) -> CopilotState:
+    latest_message = get_latest_user_message(state["message"])
+    latest_lower = latest_message.lower().strip()
+
+    greetings = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening"]
+    if latest_lower in greetings:
         return {
             **state,
-            "intent": rule_result["intent"],
-            "intent_reason": rule_result["reason"],
+            "intent": "capabilities",
+            "intent_reason": "Greeting detected",
         }
 
-    # Step 2: Use Gemini only for unclear messages
+    not_well_phrases = ["not well", "sick", "ill", "fever", "medical appointment", "doctor"]
+    if any(phrase in latest_lower for phrase in not_well_phrases):
+        return {
+            **state,
+            "intent": "apply_leave",
+            "intent_reason": "Health-related leave need detected",
+        }
+
+    if "approve" in latest_lower or "reject" in latest_lower:
+        return {
+            **state,
+            "intent": "approval",
+            "intent_reason": "Detected approval action from latest user message",
+        }
+
     llm = get_flash_model()
     router_prompt = load_prompt("router_prompt.txt")
 
@@ -105,7 +149,7 @@ Message:
         return {
             **state,
             "intent": parsed.get("intent", "unknown"),
-            "intent_reason": parsed.get("reason", "Detected using Gemini fallback"),
+            "intent_reason": parsed.get("reason", "Detected by Router Agent"),
         }
 
     except Exception as error:
@@ -138,6 +182,39 @@ def role_validation_node(state: CopilotState) -> CopilotState:
     }
 
 
+def capabilities_node(state: CopilotState) -> CopilotState:
+    role = state["user"]["role"]
+
+    common = """
+Hi, how can I help you?
+
+I can help with:
+- HR policy questions
+- Leave balance and leave status
+- Applying and cancelling leave
+- IT ticket creation and tracking
+- Asset requests
+- Viewing records based on your role
+"""
+
+    role_extra = {
+        "Employee": "- You can view only your own leave requests and IT tickets.",
+        "Manager": "- You can view employees, leave requests, pending approvals, and approve leaves/assets.",
+        "HR Team": "- You can view employees, leave records, and approve leave requests.",
+        "IT Team": "- You can view tickets/assets and update ticket status.",
+        "Admin": "- You can add/view employees and view overall records.",
+    }
+
+    response = common + "\n" + role_extra.get(role, "")
+
+    return {
+        **state,
+        "agent_used": "Capabilities Agent",
+        "tool_used": "capabilities",
+        "response": response.strip(),
+    }
+
+
 def hr_agent_node(state: CopilotState) -> CopilotState:
     response = run_hr_agent(state["user"], state["message"])
 
@@ -166,7 +243,7 @@ def rag_agent_node(state: CopilotState) -> CopilotState:
     return {
         **state,
         "agent_used": "RAG Agent",
-        "tool_used": "ChromaDB + Gemini",
+        "tool_used": "ChromaDB + Gemini/Groq",
         "response": response,
     }
 
@@ -202,7 +279,7 @@ def analytics_node(state: CopilotState) -> CopilotState:
         **state,
         "agent_used": "Analytics Agent",
         "tool_used": "analytics",
-        "response": "Analytics dashboard will be shown in the UI. This includes ticket count, leave requests, and asset requests.",
+        "response": "Analytics can show ticket count, leave requests, asset requests, and system activity.",
     }
 
 
@@ -211,7 +288,10 @@ def unknown_node(state: CopilotState) -> CopilotState:
         **state,
         "agent_used": "Fallback Agent",
         "tool_used": "none",
-        "response": "I could not clearly understand the request. Please ask about HR policies, leave, IT tickets, assets, or approvals.",
+        "response": (
+            "Sorry, I am not built to handle that request. "
+            "I can help with HR policies, leave requests, IT tickets, asset requests, approvals, and role-based records."
+        ),
     }
 
 
@@ -281,14 +361,20 @@ def route_by_intent(state: CopilotState) -> str:
     if intent in ["apply_leave", "leave_balance", "leave_status", "cancel_leave"]:
         return "hr_agent"
 
-    if intent in ["create_ticket", "ticket_status", "asset_request"]:
+    if intent in ["create_ticket", "ticket_status", "asset_request", "update_ticket"]:
         return "it_agent"
 
     if intent == "policy_question":
         return "rag_agent"
 
-    if intent == "approval":
+    if intent in ["approval", "show_pending_leaves"]:
         return "approval_agent"
+
+    if intent == "add_employee":
+        return "admin_agent"
+
+    if intent in ["show_employees", "view_records"]:
+        return "records_agent"
 
     if intent == "email":
         return "email_agent"
@@ -296,8 +382,10 @@ def route_by_intent(state: CopilotState) -> str:
     if intent == "analytics":
         return "analytics"
 
-    return "unknown"
+    if intent == "capabilities":
+        return "capabilities"
 
+    return "unknown"
 
 def build_graph():
     graph = StateGraph(CopilotState)
@@ -314,6 +402,9 @@ def build_graph():
     graph.add_node("email_agent", email_agent_node)
     graph.add_node("analytics", analytics_node)
     graph.add_node("unknown", unknown_node)
+    graph.add_node("capabilities", capabilities_node)
+    graph.add_node("admin_agent", admin_agent_node)
+    graph.add_node("records_agent", records_agent_node)
 
     graph.add_node("final_response", final_response_node)
     graph.add_node("log", log_node)
@@ -362,6 +453,9 @@ def build_graph():
             "email_agent": "email_agent",
             "analytics": "analytics",
             "unknown": "unknown",
+            "capabilities": "capabilities",
+            "admin_agent": "admin_agent",
+            "records_agent": "records_agent",
         },
     )
 
@@ -372,6 +466,9 @@ def build_graph():
     graph.add_edge("email_agent", "final_response")
     graph.add_edge("analytics", "final_response")
     graph.add_edge("unknown", "final_response")
+    graph.add_edge("capabilities", "final_response")
+    graph.add_edge("admin_agent", "final_response")
+    graph.add_edge("records_agent", "final_response")
 
     graph.add_edge("final_response", "log")
     graph.add_edge("log", END)

@@ -1,5 +1,7 @@
 from pathlib import Path
 from typing import List, Dict
+from pypdf import PdfReader
+from docx import Document
 
 import chromadb
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
@@ -18,11 +20,12 @@ embedding_function = SentenceTransformerEmbeddingFunction(
 
 def read_policy_files() -> List[Dict]:
     """
-    Reads all .txt policy files from data folder.
-    This keeps the system dynamic because we do not hardcode each policy file.
+    Reads .txt, .pdf, and .docx policy files from data folder.
+    Keeps system dynamic without hardcoding file names.
     """
     documents = []
 
+    # TXT files
     for file_path in DATA_DIR.glob("*.txt"):
         text = file_path.read_text(encoding="utf-8").strip()
 
@@ -31,6 +34,40 @@ def read_policy_files() -> List[Dict]:
                 "source": file_path.name,
                 "text": text
             })
+
+    # PDF files
+    for file_path in DATA_DIR.glob("*.pdf"):
+        try:
+            reader = PdfReader(str(file_path))
+            text = ""
+
+            for page in reader.pages:
+                if page.extract_text():
+                    text += page.extract_text() + "\n"
+
+            text = text.strip()
+
+            if text:
+                documents.append({
+                    "source": file_path.name,
+                    "text": text
+                })
+        except Exception as e:
+            print(f"Error reading PDF {file_path.name}: {e}")
+
+    # DOCX files
+    for file_path in DATA_DIR.glob("*.docx"):
+        try:
+            doc = Document(str(file_path))
+            text = "\n".join([para.text for para in doc.paragraphs]).strip()
+
+            if text:
+                documents.append({
+                    "source": file_path.name,
+                    "text": text
+                })
+        except Exception as e:
+            print(f"Error reading DOCX {file_path.name}: {e}")
 
     return documents
 

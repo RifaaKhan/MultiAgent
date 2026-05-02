@@ -55,59 +55,50 @@ def validate_role_before_tool(user: dict, intent: str) -> tuple[bool, str]:
     """
     role = user.get("role")
 
+    employee_actions = [
+        "policy_question",
+        "apply_leave",
+        "leave_balance",
+        "leave_status",
+        "cancel_leave",
+        "create_ticket",
+        "ticket_status",
+        "asset_request",
+        "unknown",
+        "capabilities",
+    ]
+
     permissions = {
-        "Employee": [
-            "policy_question",
-            "apply_leave",
-            "leave_balance",
-            "leave_status",
-            "cancel_leave",
-            "create_ticket",
-            "ticket_status",
-            "asset_request",
-            "unknown",
-        ],
-        "Manager": [
-            "policy_question",
-            "apply_leave",
-            "leave_balance",
-            "leave_status",
-            "cancel_leave",
-            "create_ticket",
-            "ticket_status",
-            "asset_request",
+        "Employee": employee_actions,
+
+        "Manager": employee_actions + [
             "approval",
+            "show_pending_leaves",
+            "show_employees",
+            "view_records",
             "analytics",
-            "unknown",
         ],
-        "IT Team": [
-            "policy_question",
-            "create_ticket",
-            "ticket_status",
-            "asset_request",
-            "analytics",
-            "unknown",
-        ],
-        "HR Team": [
-            "policy_question",
-            "leave_balance",
-            "leave_status",
-            "analytics",
-            "unknown",
-        ],
-        "Admin": [
-            "policy_question",
-            "apply_leave",
-            "leave_balance",
-            "leave_status",
-            "cancel_leave",
-            "create_ticket",
-            "ticket_status",
-            "asset_request",
+
+        "HR Team": employee_actions + [
             "approval",
+            "show_pending_leaves",
+            "show_employees",
+            "view_records",
+            "analytics",
+        ],
+
+        "IT Team": employee_actions + [
+            "view_records",
+            "update_ticket",
+            "analytics",
+        ],
+
+        "Admin": employee_actions + [
+            "add_employee",
+            "show_employees",
+            "view_records",
+            "analytics",
             "email",
-            "analytics",
-            "unknown",
         ],
     }
 

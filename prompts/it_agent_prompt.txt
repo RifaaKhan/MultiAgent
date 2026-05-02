@@ -6,7 +6,9 @@ Supported actions:
 1. create_ticket
 2. get_ticket_status
 3. create_asset_request
-4. unknown
+4. cancel_asset_request
+5. update_ticket_status
+6. unknown
 
 Return ONLY valid JSON.
 
@@ -17,7 +19,10 @@ JSON format:
   "description": "",
   "priority": "",
   "asset_type": "",
-  "reason": ""
+  "reason": "",
+  "request_id": ""
+  "ticket_id": "",
+  "status": ""
 }
 
 Rules:
@@ -25,5 +30,13 @@ Rules:
 - priority must be Low, Medium, High, or Critical.
 - If priority is not mentioned, use Medium.
 - asset_type examples: Laptop, Monitor, Keyboard, Mouse, VPN Token, Software License.
+- If an Employee asks to view other employees' tickets, still return action as get_ticket_status. The system will enforce RBAC.
+- If user asks "show tickets", "view tickets", or "raised tickets", return get_ticket_status.
+- If the user wants to cancel an asset request, return action as cancel_asset_request and extract request_id like ASSET-1.
+- If the user wants to close, resolve, reopen, or update a ticket status, return action as update_ticket_status.
+- Extract ticket_id like IT-1.
+- Valid statuses: Open, In Progress, Resolved, Closed.
+- If user says close ticket, status must be Closed.
+- If user says resolve ticket, status must be Resolved.
 - Do not answer directly.
 - Do not invent unnecessary details.

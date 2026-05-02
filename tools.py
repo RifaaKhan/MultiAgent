@@ -323,8 +323,11 @@ def approve_request(approver_id, request_type, request_id, decision):
     if not approver:
         return "Invalid approver."
 
-    if approver["role"] not in ["Manager", "HR Team", "IT Team", "Admin"]:
-        return "Access denied. You do not have approval permission."
+    if request_type == "leave" and approver["role"] not in ["Manager", "HR Team"]:
+        return "Access denied. Only Manager or HR Team can approve leave requests."
+
+    if request_type == "asset" and approver["role"] not in ["Manager"]:
+        return "Access denied. Only Manager can approve asset requests."
 
     if decision not in ["Approved", "Rejected"]:
         return "Invalid decision. Use Approved or Rejected."
@@ -395,6 +398,443 @@ def save_log(user_id, query, intent, agent_used, tool_used, status, response_tim
 
     conn.commit()
     conn.close()
+
+def get_all_users():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT user_id, name, role, department, email
+        FROM users
+        ORDER BY name
+    """)
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [
+        {
+            "user_id": row[0],
+            "name": row[1],
+            "role": row[2],
+            "department": row[3],
+            "email": row[4],
+        }
+        for row in rows
+    ]
+
+
+def get_pending_leave_requests():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT lr.request_id, lr.user_id, u.name, lr.leave_type, lr.start_date, lr.end_date, lr.reason, lr.status
+        FROM leave_requests lr
+        JOIN users u ON lr.user_id = u.user_id
+        WHERE lr.status = 'Pending Manager Approval'
+        ORDER BY lr.created_at DESC
+    """)
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [
+        {
+            "request_id": f"LEAVE-{row[0]}",
+            "user_id": row[1],
+            "name": row[2],
+            "leave_type": row[3],
+            "start_date": row[4],
+            "end_date": row[5],
+            "reason": row[6],
+            "status": row[7],
+        }
+        for row in rows
+    ]
+
+
+def get_all_asset_requests():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT ar.request_id, ar.user_id, u.name, ar.asset_type, ar.reason, ar.status
+        FROM asset_requests ar
+        JOIN users u ON ar.user_id = u.user_id
+        ORDER BY ar.created_at DESC
+    """)
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [
+        {
+            "request_id": f"ASSET-{row[0]}",
+            "user_id": row[1],
+            "name": row[2],
+            "asset_type": row[3],
+            "reason": row[4],
+            "status": row[5],
+        }
+        for row in rows
+    ]
+
+
+def update_ticket_status(ticket_id, status):
+    clean_id = str(ticket_id).replace("IT-", "")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE it_tickets
+        SET status = ?
+        WHERE ticket_id = ?
+    """, (status, clean_id))
+
+    conn.commit()
+    updated = cursor.rowcount
+    conn.close()
+
+    if updated == 0:
+        return "Ticket not found."
+
+    return f"Ticket IT-{clean_id} updated to {status}."
+
+
+def get_analytics_summary():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT COUNT(*) FROM leave_requests")
+    total_leaves = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status LIKE 'Pending%'")
+    pending_leaves = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COUNT(*) FROM it_tickets")
+    total_tickets = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COUNT(*) FROM it_tickets WHERE status IN ('Open', 'In Progress')")
+    open_tickets = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COUNT(*) FROM asset_requests")
+    total_assets = cursor.fetchone()[0]
+
+    conn.close()
+
+    return {
+        "total_leaves": total_leaves,
+        "pending_leaves": pending_leaves,
+        "total_tickets": total_tickets,
+        "open_tickets": open_tickets,
+        "total_assets": total_assets,
+    }
+
+def get_used_leave_days(user_id, leave_type):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT start_date, end_date
+        FROM leave_requests
+        WHERE user_id = ?
+        AND leave_type = ?
+        AND status = 'Approved'
+    """, (user_id, leave_type))
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    used_days = 0
+
+    for start_date, end_date in rows:
+        start = datetime.strptime(start_date, "%Y-%m-%d")
+        end = datetime.strptime(end_date, "%Y-%m-%d")
+        used_days += (end - start).days + 1
+
+    return used_days
+
+
+def get_leave_balance_report(user_id, leave_type=None):
+    balance = get_leave_balance(user_id)
+
+    if isinstance(balance, str):
+        return balance
+
+    leave_types = {
+        "casual": "casual_leave",
+        "sick": "sick_leave",
+        "earned": "earned_leave",
+    }
+
+    if leave_type:
+        leave_type = leave_type.lower()
+
+        if leave_type not in leave_types:
+            return "Invalid leave type. Please ask for casual, sick, or earned leave."
+
+        total = balance[leave_types[leave_type]]
+        used = get_used_leave_days(user_id, leave_type)
+        remaining = total - used
+
+        return (
+            f"You have {total} {leave_type} leaves in total. "
+            f"You have consumed {used} {leave_type} leaves. "
+            f"Remaining {leave_type} leaves: {remaining}."
+        )
+
+    reports = []
+
+    for leave_name, column_name in leave_types.items():
+        total = balance[column_name]
+        used = get_used_leave_days(user_id, leave_name)
+        remaining = total - used
+
+        reports.append(
+            f"{leave_name.capitalize()} Leave → Total: {total}, Used: {used}, Remaining: {remaining}"
+        )
+
+    return "\n".join(reports)
+
+
+def get_all_leave_requests():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT lr.request_id, lr.user_id, u.name, lr.leave_type, lr.start_date, lr.end_date, lr.reason, lr.status
+        FROM leave_requests lr
+        JOIN users u ON lr.user_id = u.user_id
+        ORDER BY lr.created_at DESC
+    """)
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [
+        {
+            "request_id": f"LEAVE-{row[0]}",
+            "user_id": row[1],
+            "name": row[2],
+            "leave_type": row[3],
+            "start_date": row[4],
+            "end_date": row[5],
+            "reason": row[6],
+            "status": row[7],
+        }
+        for row in rows
+    ]
+
+def add_employee(user_id, name, role, department, email):
+    allowed_roles = ["Employee", "Manager", "HR Team", "IT Team", "Admin"]
+
+    if role not in allowed_roles:
+        return f"Invalid role. Allowed roles: {', '.join(allowed_roles)}"
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT user_id
+        FROM users
+        WHERE user_id = ?
+    """, (user_id,))
+
+    existing = cursor.fetchone()
+
+    if existing:
+        conn.close()
+        return f"User {user_id} already exists."
+
+    cursor.execute("""
+        INSERT INTO users (user_id, name, role, department, email)
+        VALUES (?, ?, ?, ?, ?)
+    """, (user_id, name, role, department, email))
+
+    cursor.execute("""
+        INSERT INTO leave_balance (user_id, casual_leave, sick_leave, earned_leave)
+        VALUES (?, 12, 10, 15)
+    """, (user_id,))
+
+    conn.commit()
+    conn.close()
+
+    return f"Employee {name} ({user_id}) added successfully with role {role}."
+
+def format_pending_leave_requests():
+    pending_leaves = get_pending_leave_requests()
+
+    if not pending_leaves:
+        return "No pending leave requests found."
+
+    lines = ["Pending Leave Requests:"]
+
+    for leave in pending_leaves:
+        lines.append(
+            f"{leave['request_id']} | "
+            f"Employee: {leave['name']} ({leave['user_id']}) | "
+            f"Type: {leave['leave_type']} | "
+            f"Dates: {leave['start_date']} to {leave['end_date']} | "
+            f"Reason: {leave['reason']} | "
+            f"Status: {leave['status']}"
+        )
+
+    return "\n".join(lines)
+
+def cancel_asset_request(user_id, request_id):
+    clean_id = str(request_id).replace("ASSET-", "")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT request_id, status
+        FROM asset_requests
+        WHERE request_id = ? AND user_id = ?
+    """, (clean_id, user_id))
+
+    asset = cursor.fetchone()
+
+    if not asset:
+        conn.close()
+        return "Asset request not found or you do not have access to cancel it."
+
+    if asset[1] == "Approved":
+        conn.close()
+        return "Approved asset request cannot be cancelled from chatbot. Please contact IT."
+
+    cursor.execute("""
+        UPDATE asset_requests
+        SET status = 'Cancelled'
+        WHERE request_id = ? AND user_id = ?
+    """, (clean_id, user_id))
+
+    conn.commit()
+    conn.close()
+
+    return f"Asset request ASSET-{clean_id} cancelled successfully."
+
+def get_asset_requests_by_status(status_filter=None):
+    assets = get_all_asset_requests()
+
+    if not status_filter:
+        return assets
+
+    status_filter = status_filter.lower()
+
+    return [
+        asset for asset in assets
+        if asset["status"].lower() == status_filter
+    ]
+
+
+def format_asset_requests(assets, title="Asset Requests"):
+    if not assets:
+        return f"No {title.lower()} found."
+
+    lines = [f"{title}:"]
+
+    for asset in assets:
+        lines.append(
+            f"{asset['request_id']} | "
+            f"Employee: {asset['name']} ({asset['user_id']}) | "
+            f"Asset: {asset['asset_type']} | "
+            f"Reason: {asset['reason']} | "
+            f"Status: {asset['status']}"
+        )
+
+    return "\n".join(lines)
+
+
+def format_open_it_tickets():
+    tickets = get_ticket_status(user_id="", role="IT Team")
+
+    if not isinstance(tickets, list):
+        return tickets
+
+    open_tickets = [
+        ticket for ticket in tickets
+        if ticket["status"] in ["Open", "In Progress"]
+    ]
+
+    if not open_tickets:
+        return "No open IT tickets found."
+
+    lines = ["Open IT Tickets:"]
+
+    for ticket in open_tickets:
+        lines.append(
+            f"{ticket['ticket_id']} | "
+            f"User: {ticket['user_id']} | "
+            f"Issue: {ticket['issue_type']} | "
+            f"Priority: {ticket['priority']} | "
+            f"Status: {ticket['status']}"
+        )
+
+    return "\n".join(lines)
+
+def get_leave_request_owner(request_id):
+    clean_id = str(request_id).replace("LEAVE-", "")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT u.user_id, u.name, u.role, u.department, u.email,
+               lr.request_id, lr.leave_type, lr.start_date, lr.end_date, lr.status
+        FROM leave_requests lr
+        JOIN users u ON lr.user_id = u.user_id
+        WHERE lr.request_id = ?
+    """, (clean_id,))
+
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return None
+
+    return {
+        "user_id": row[0],
+        "name": row[1],
+        "role": row[2],
+        "department": row[3],
+        "email": row[4],
+        "request_id": f"LEAVE-{row[5]}",
+        "leave_type": row[6],
+        "start_date": row[7],
+        "end_date": row[8],
+        "status": row[9],
+    }
+
+def get_asset_requests_for_user(user_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT request_id, user_id, asset_type, reason, status
+        FROM asset_requests
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+    """, (user_id,))
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    if not rows:
+        return "No asset requests found."
+
+    return [
+        {
+            "request_id": f"ASSET-{row[0]}",
+            "user_id": row[1],
+            "asset_type": row[2],
+            "reason": row[3],
+            "status": row[4],
+        }
+        for row in rows
+    ]
 
 
 def run_tests():
