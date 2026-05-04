@@ -21,6 +21,7 @@ Allowed intents:
 16. show_employees
 17. view_records
 18. update_ticket
+19. delete_employee
 
 Return ONLY valid JSON.
 
@@ -69,6 +70,7 @@ Important rules:
 - If the user asks to show all employee leaves, all leaves, all leave requests, choose view_records.
 - If the user asks to show all asset requests, all assets, all tickets, all records, choose view_records.
 
+- If Admin wants to delete/remove an employee, choose delete_employee.
 - If the user asks dashboard/count/summary, choose analytics.
 - If the user asks what you can do, help, features, capabilities, or how you can assist, choose capabilities.
 - If unsure, choose unknown.

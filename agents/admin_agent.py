@@ -1,12 +1,12 @@
 from llm_config import get_flash_model
 from prompt_loader import load_prompt
 from agents.agent_utils import extract_json
-from tools import add_employee
+from tools import add_employee, delete_employee
 
 
 def run_admin_agent(user: dict, message: str):
     if user["role"] != "Admin":
-        return "Access denied. Only Admin can add employees."
+        return "Access denied. Only Admin can manage employees."
 
     llm = get_flash_model()
     prompt_template = load_prompt("admin_agent_prompt.txt")
@@ -32,6 +32,12 @@ Message:
     if parsed.get("name") == user["name"]:
         parsed["name"] = ""
 
+    if action == "delete_employee":
+        if not parsed.get("user_id"):
+            return "Please provide the employee User ID to delete. Example: Delete employee EMP002."
+
+        return delete_employee(parsed["user_id"])
+
     if action == "add_employee":
         required = ["user_id", "name", "role", "department", "email"]
         missing = [field for field in required if not parsed.get(field)]
@@ -55,4 +61,4 @@ Message:
             email=parsed["email"],
         )
 
-    return "Please provide employee details to add a new employee."
+    return "Please ask me to add or delete an employee."

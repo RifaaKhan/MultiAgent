@@ -669,16 +669,17 @@ def format_pending_leave_requests():
     if not pending_leaves:
         return "No pending leave requests found."
 
-    lines = ["Pending Leave Requests:"]
+    lines = ["Pending Leave Requests:\n"]
 
     for leave in pending_leaves:
         lines.append(
-            f"{leave['request_id']} | "
-            f"Employee: {leave['name']} ({leave['user_id']}) | "
-            f"Type: {leave['leave_type']} | "
-            f"Dates: {leave['start_date']} to {leave['end_date']} | "
-            f"Reason: {leave['reason']} | "
-            f"Status: {leave['status']}"
+            f"Request ID: {leave['request_id']}\n"
+            f"Employee: {leave['name']} ({leave['user_id']})\n"
+            f"Leave Type: {leave['leave_type']}\n"
+            f"Dates: {leave['start_date']} to {leave['end_date']}\n"
+            f"Reason: {leave['reason'] or 'Not specified'}\n"
+            f"Status: {leave['status']}\n"
+            f"{'-' * 35}"
         )
 
     return "\n".join(lines)
@@ -734,15 +735,16 @@ def format_asset_requests(assets, title="Asset Requests"):
     if not assets:
         return f"No {title.lower()} found."
 
-    lines = [f"{title}:"]
+    lines = [f"{title}:\n"]
 
     for asset in assets:
         lines.append(
-            f"{asset['request_id']} | "
-            f"Employee: {asset['name']} ({asset['user_id']}) | "
-            f"Asset: {asset['asset_type']} | "
-            f"Reason: {asset['reason']} | "
-            f"Status: {asset['status']}"
+            f"Request ID: {asset['request_id']}\n"
+            f"Employee: {asset.get('name', 'Unknown')} ({asset['user_id']})\n"
+            f"Asset: {asset['asset_type']}\n"
+            f"Reason: {asset.get('reason') or 'Not specified'}\n"
+            f"Status: {asset['status']}\n"
+            f"{'-' * 35}"
         )
 
     return "\n".join(lines)
@@ -762,15 +764,16 @@ def format_open_it_tickets():
     if not open_tickets:
         return "No open IT tickets found."
 
-    lines = ["Open IT Tickets:"]
+    lines = ["Open IT Tickets:\n"]
 
     for ticket in open_tickets:
         lines.append(
-            f"{ticket['ticket_id']} | "
-            f"User: {ticket['user_id']} | "
-            f"Issue: {ticket['issue_type']} | "
-            f"Priority: {ticket['priority']} | "
-            f"Status: {ticket['status']}"
+            f"Ticket ID: {ticket['ticket_id']}\n"
+            f"User: {ticket['user_id']}\n"
+            f"Issue: {ticket['issue_type']}\n"
+            f"Priority: {ticket['priority']}\n"
+            f"Status: {ticket['status']}\n"
+            f"{'-' * 35}"
         )
 
     return "\n".join(lines)
@@ -835,6 +838,31 @@ def get_asset_requests_for_user(user_id):
         }
         for row in rows
     ]
+
+def delete_employee(user_id):
+    user = get_user(user_id)
+
+    if not user:
+        return f"User {user_id} not found."
+
+    if user_id == "ADMIN001":
+        return "Default admin user cannot be deleted."
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM leave_requests WHERE user_id = ?", (user_id,))
+    cursor.execute("DELETE FROM leave_balance WHERE user_id = ?", (user_id,))
+    cursor.execute("DELETE FROM it_tickets WHERE user_id = ?", (user_id,))
+    cursor.execute("DELETE FROM asset_requests WHERE user_id = ?", (user_id,))
+    cursor.execute("DELETE FROM chat_memory WHERE user_id = ?", (user_id,))
+    cursor.execute("DELETE FROM logs WHERE user_id = ?", (user_id,))
+    cursor.execute("DELETE FROM users WHERE user_id = ?", (user_id,))
+
+    conn.commit()
+    conn.close()
+
+    return f"Employee {user['name']} ({user_id}) and related records deleted successfully."
 
 
 def run_tests():

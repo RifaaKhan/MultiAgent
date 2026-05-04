@@ -370,7 +370,7 @@ def route_by_intent(state: CopilotState) -> str:
     if intent in ["approval", "show_pending_leaves"]:
         return "approval_agent"
 
-    if intent == "add_employee":
+    if intent in ["add_employee", "delete_employee"]:
         return "admin_agent"
 
     if intent in ["show_employees", "view_records"]:

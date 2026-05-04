@@ -90,7 +90,7 @@ Latest user message:
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 response = run_copilot(user["user_id"], message_with_context)
-                st.write(response)
+                st.code(response)
 
         st.session_state[chat_key].append({
             "role": "assistant",

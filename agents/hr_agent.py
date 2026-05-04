@@ -22,14 +22,15 @@ def format_my_leaves(leaves):
     if not leaves:
         return "No leave requests found."
 
-    lines = ["My Leave Requests:"]
+    lines = ["My Leave Requests:\n"]
 
     for leave in leaves:
         lines.append(
-            f"{leave['request_id']} | "
-            f"Type: {leave['leave_type']} | "
-            f"Dates: {leave['start_date']} to {leave['end_date']} | "
-            f"Status: {leave['status']}"
+            f"Request ID: {leave['request_id']}\n"
+            f"Leave Type: {leave['leave_type']}\n"
+            f"Dates: {leave['start_date']} to {leave['end_date']}\n"
+            f"Status: {leave['status']}\n"
+            f"{'-' * 35}"
         )
 
     return "\n".join(lines)

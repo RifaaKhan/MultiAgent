@@ -19,12 +19,18 @@ def format_users(users):
     if not users:
         return "No employees found."
 
-    lines = ["Employees:"]
+    lines = ["Employees:\n"]
+
     for user in users:
         lines.append(
-            f"{user['user_id']} | {user['name']} | Role: {user['role']} | "
-            f"Department: {user['department']} | Email: {user['email']}"
+            f"User ID: {user['user_id']}\n"
+            f"Name: {user['name']}\n"
+            f"Role: {user['role']}\n"
+            f"Department: {user['department']}\n"
+            f"Email: {user['email']}\n"
+            f"{'-' * 35}"
         )
+
     return "\n".join(lines)
 
 
@@ -35,19 +41,22 @@ def format_leaves(leaves, title="Leave Requests"):
     if not leaves:
         return f"No {title.lower()} found."
 
-    lines = [f"{title}:"]
+    lines = [f"{title}:\n"]
+
     for leave in leaves:
         employee = ""
         if "name" in leave and "user_id" in leave:
-            employee = f"Employee: {leave['name']} ({leave['user_id']}) | "
+            employee = f"Employee: {leave['name']} ({leave['user_id']})\n"
 
         lines.append(
-            f"{leave['request_id']} | "
+            f"Request ID: {leave['request_id']}\n"
             f"{employee}"
-            f"Type: {leave['leave_type']} | "
-            f"Dates: {leave['start_date']} to {leave['end_date']} | "
-            f"Status: {leave['status']}"
+            f"Leave Type: {leave['leave_type']}\n"
+            f"Dates: {leave['start_date']} to {leave['end_date']}\n"
+            f"Status: {leave['status']}\n"
+            f"{'-' * 35}"
         )
+
     return "\n".join(lines)
 
 
@@ -58,13 +67,19 @@ def format_tickets(tickets, title="IT Tickets"):
     if not tickets:
         return f"No {title.lower()} found."
 
-    lines = [f"{title}:"]
+    lines = [f"{title}:\n"]
+
     for ticket in tickets:
         lines.append(
-            f"{ticket['ticket_id']} | User: {ticket['user_id']} | "
-            f"Issue: {ticket['issue_type']} | Priority: {ticket['priority']} | "
-            f"Status: {ticket['status']} | Assigned: {ticket['assigned_engineer']}"
+            f"Ticket ID: {ticket['ticket_id']}\n"
+            f"User: {ticket['user_id']}\n"
+            f"Issue: {ticket['issue_type']}\n"
+            f"Priority: {ticket['priority']}\n"
+            f"Status: {ticket['status']}\n"
+            f"Assigned Engineer: {ticket['assigned_engineer']}\n"
+            f"{'-' * 35}"
         )
+
     return "\n".join(lines)
 
 
@@ -75,14 +90,15 @@ def format_my_assets(assets):
     if not assets:
         return "No asset requests found."
 
-    lines = ["My Asset Requests:"]
+    lines = ["My Asset Requests:\n"]
 
     for asset in assets:
         lines.append(
-            f"{asset['request_id']} | "
-            f"Asset: {asset['asset_type']} | "
-            f"Reason: {asset['reason']} | "
-            f"Status: {asset['status']}"
+            f"Request ID: {asset['request_id']}\n"
+            f"Asset: {asset['asset_type']}\n"
+            f"Reason: {asset.get('reason') or 'Not specified'}\n"
+            f"Status: {asset['status']}\n"
+            f"{'-' * 35}"
         )
 
     return "\n".join(lines)

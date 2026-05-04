@@ -21,16 +21,17 @@ def format_tickets(tickets):
     if not tickets:
         return "No IT tickets found."
 
-    lines = ["IT Tickets:"]
+    lines = ["IT Tickets:\n"]
 
     for ticket in tickets:
         lines.append(
-            f"{ticket['ticket_id']} | "
-            f"User: {ticket['user_id']} | "
-            f"Issue: {ticket['issue_type']} | "
-            f"Priority: {ticket['priority']} | "
-            f"Status: {ticket['status']} | "
-            f"Assigned: {ticket['assigned_engineer']}"
+            f"Ticket ID: {ticket['ticket_id']}\n"
+            f"User: {ticket['user_id']}\n"
+            f"Issue: {ticket['issue_type']}\n"
+            f"Priority: {ticket['priority']}\n"
+            f"Status: {ticket['status']}\n"
+            f"Assigned Engineer: {ticket['assigned_engineer']}\n"
+            f"{'-' * 35}"
         )
 
     return "\n".join(lines)

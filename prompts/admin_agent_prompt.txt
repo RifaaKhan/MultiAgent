@@ -5,7 +5,8 @@ Your job is to extract employee creation details from the conversation.
 Supported actions:
 1. add_employee
 2. show_employees
-3. unknown
+3. delete_employee
+4. unknown
 
 Return ONLY valid JSON.
 
@@ -27,4 +28,7 @@ Rules:
 - Only extract what user explicitly provides.
 - If name is provided but others are missing, leave others empty.
 - Allowed roles: Employee, Manager, HR Team, IT Team, Admin.
+- If the user wants to delete/remove an employee, action must be delete_employee.
+- For delete_employee, extract only user_id.
+- Do not delete unless user_id is provided.
 - Do not invent values.
