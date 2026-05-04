@@ -1,6 +1,8 @@
 import os
 import requests
 from dotenv import load_dotenv
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from llm_config import get_flash_model
 from prompt_loader import load_prompt
@@ -48,7 +50,7 @@ def send_email_via_power_automate(to_email: str, subject: str, body: str):
     }
 
     try:
-        response = requests.post(flow_url, json=payload, timeout=15)
+        response = requests.post(flow_url, json=payload, timeout=15, verify=False)
 
         if response.status_code in [200, 201, 202]:
             return "Email sent successfully through Power Automate."

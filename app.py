@@ -57,7 +57,10 @@ def show_chat(user):
 
     for message in st.session_state[chat_key]:
         with st.chat_message(message["role"]):
-            st.write(message["content"])
+            if message["role"] == "assistant":
+                st.code(message["content"])  
+            else:
+                st.markdown(message["content"])   
 
     user_input = st.chat_input("Ask about HR policies, leave, IT tickets, assets, or approvals...")
 

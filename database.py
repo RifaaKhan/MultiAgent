@@ -118,8 +118,8 @@ def insert_sample_users():
     cursor = conn.cursor()
 
     users = [
-        ("EMP001", "Rifa", "Employee", "Engineering", "rifa@example.com"),
-        ("MGR001", "Ayesha", "Manager", "Engineering", "ayesha@example.com"),
+        ("EMP001", "Tina", "Employee", "Engineering", "tina@example.com"),
+        ("MGR001", "Rifaa", "Manager", "Engineering", "rifaa@example.com"),
         ("IT001", "John", "IT Team", "IT", "john@example.com"),
         ("HR001", "Sara", "HR Team", "HR", "sara@example.com"),
         ("ADMIN001", "Admin", "Admin", "Administration", "admin@example.com"),
