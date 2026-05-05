@@ -8,6 +8,7 @@ from tools import (
     get_asset_requests_by_status,
     format_asset_requests,
     get_leave_request_owner,
+    get_asset_request_owner,
 )
 
 
@@ -42,6 +43,11 @@ def format_manager_pending_approvals():
     return f"{leave_text}\n\n{asset_text}"
 
 
+def format_it_pending_approvals():
+    pending_assets = get_asset_requests_by_status("Pending IT Approval")
+    return format_asset_requests(pending_assets, "Pending IT Asset Approvals")
+
+
 def run_approval_agent(user: dict, message: str):
     latest_message = get_latest_user_message(message)
     latest_lower = latest_message.lower()
@@ -53,6 +59,9 @@ def run_approval_agent(user: dict, message: str):
 
         if role == "HR Team":
             return format_pending_leave_requests()
+
+        if role == "IT Team":
+            return format_it_pending_approvals()
 
         return "Access denied. Your role cannot view approval requests."
 
@@ -86,6 +95,9 @@ Latest User Message:
         if role == "HR Team" and request_type == "asset":
             return "Access denied. HR Team can approve leave requests only."
 
+        if role == "IT Team" and request_type == "leave":
+            return "Access denied. IT Team can approve asset requests only."
+
         request_id = normalize_request_id(request_id, request_type)
 
         approval_result = approve_request(
@@ -106,6 +118,19 @@ Latest User Message:
                 )
 
                 return f"{approval_result}\n\nEmail Status: {email_result['email_status']}"
+
+        if request_type == "asset" and "Approved" in approval_result:
+            if role == "IT Team":
+                employee = get_asset_request_owner(request_id)
+
+                if employee:
+                    email_result = generate_and_send_email(
+                        request_type="Asset Approval Confirmation",
+                        user=employee,
+                        details=approval_result,
+                    )
+
+                    return f"{approval_result}\n\nEmail Status: {email_result['email_status']}"
 
         return approval_result
 

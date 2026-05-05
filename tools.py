@@ -326,8 +326,8 @@ def approve_request(approver_id, request_type, request_id, decision):
     if request_type == "leave" and approver["role"] not in ["Manager", "HR Team"]:
         return "Access denied. Only Manager or HR Team can approve leave requests."
 
-    if request_type == "asset" and approver["role"] not in ["Manager"]:
-        return "Access denied. Only Manager can approve asset requests."
+    if request_type == "asset" and approver["role"] not in ["Manager", "IT Team"]:
+        return "Access denied. Only Manager or IT Team can approve asset requests."
 
     if decision not in ["Approved", "Rejected"]:
         return "Invalid decision. Use Approved or Rejected."
@@ -345,11 +345,38 @@ def approve_request(approver_id, request_type, request_id, decision):
         """, (decision, clean_id))
 
     elif request_type == "asset":
+
+    
+        if approver["role"] == "Manager" and decision == "Approved":
+            cursor.execute("""
+                UPDATE asset_requests
+                SET status = 'Pending IT Approval'
+                WHERE request_id = ?
+            """, (clean_id,))
+
+            conn.commit()
+            conn.close()
+
+            return f"Asset request ASSET-{clean_id} approved by Manager and forwarded to IT."
+
+
+        if approver["role"] == "IT Team" and decision == "Approved":
+            cursor.execute("""
+                UPDATE asset_requests
+                SET status = 'Approved'
+                WHERE request_id = ?
+            """, (clean_id,))
+
+            conn.commit()
+            conn.close()
+
+            return f"Asset request ASSET-{clean_id} has been Approved."
+
         cursor.execute("""
             UPDATE asset_requests
-            SET status = ?
+            SET status = 'Rejected'
             WHERE request_id = ?
-        """, (decision, clean_id))
+        """, (clean_id,))
 
     else:
         conn.close()
@@ -863,6 +890,31 @@ def delete_employee(user_id):
     conn.close()
 
     return f"Employee {user['name']} ({user_id}) and related records deleted successfully."
+
+def get_asset_request_owner(request_id):
+    clean_id = str(request_id).replace("ASSET-", "")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT u.user_id, u.name, u.email
+        FROM asset_requests a
+        JOIN users u ON a.user_id = u.user_id
+        WHERE a.request_id = ?
+    """, (clean_id,))
+
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return None
+
+    return {
+        "user_id": row[0],
+        "name": row[1],
+        "email": row[2],
+    }
 
 
 def run_tests():

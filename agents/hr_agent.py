@@ -36,6 +36,19 @@ def format_my_leaves(leaves):
     return "\n".join(lines)
 
 
+def should_auto_set_one_day_leave(latest_message: str) -> bool:
+    text = f" {latest_message.lower()} "
+
+    one_day_patterns = [
+        " on ",
+        "for one day",
+        "for a day",
+        "one day off",
+    ]
+
+    return any(pattern in text for pattern in one_day_patterns)
+
+
 def run_hr_agent(user: dict, message: str):
     latest_message = get_latest_user_message(message)
     latest_lower = latest_message.lower()
@@ -81,6 +94,13 @@ Conversation Context:
         )
 
     if action == "apply_leave":
+        if (
+            parsed.get("start_date")
+            and not parsed.get("end_date")
+            and should_auto_set_one_day_leave(latest_message)
+        ):
+            parsed["end_date"] = parsed["start_date"]
+
         required = ["leave_type", "start_date", "end_date"]
         missing = [field for field in required if not parsed.get(field)]
 

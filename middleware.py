@@ -91,6 +91,7 @@ def validate_role_before_tool(user: dict, intent: str) -> tuple[bool, str]:
             "view_records",
             "update_ticket",
             "analytics",
+            "approval",
         ],
 
         "Admin": employee_actions + [

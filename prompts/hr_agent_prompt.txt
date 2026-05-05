@@ -23,7 +23,8 @@ JSON format:
 
 Rules:
 - Understand natural language dates like "29 April 2026" and convert to YYYY-MM-DD.
-- If the user says "for one day", "for a day", or "one day off", set end_date same as start_date.
+- If the user mentions a single date using words like "on", "for one day", "for a day", or "one day off", set both start_date and end_date to that same date.
+- If the user uses "from" and "to", extract start_date and end_date separately.
 - If the latest message is incomplete, use the conversation context to fill missing details.
 - Leave type must be casual, sick, or earned.
 - If leave type is not mentioned, keep it empty.
