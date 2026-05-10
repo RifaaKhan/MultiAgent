@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import re
 
 from graph import run_copilot
 from tools import (
@@ -14,6 +15,8 @@ from tools import (
     update_ticket_status,
     get_analytics_summary,
     add_employee,
+    get_user_logs,
+    get_user_chat_logs,
 )
 
 st.set_page_config(
@@ -29,6 +32,41 @@ def format_user_label(user):
 
 def get_user_chat_key(user_id):
     return f"messages_{user_id}"
+
+def answer_current_chat_query(user_input, chat_messages):
+    text = user_input.lower().strip()
+
+    if "query" not in text:
+        return None
+
+    user_queries = [
+        msg["content"]
+        for msg in chat_messages
+        if msg["role"] == "user"
+    ]
+
+    if not user_queries:
+        return "I do not see any previous queries in this current chat."
+
+    query_positions = {
+        "first": 0,
+        "second": 1,
+        "third": 2,
+        "fourth": 3,
+        "fifth": 4,
+    }
+
+    if re.search(r"\b(last|previous)\s+query\b", text):
+        return f"Your last query was:\n\n{user_queries[-1]}"
+
+    for word, index in query_positions.items():
+        if re.search(rf"\b{word}\s+query\b", text):
+            if len(user_queries) > index:
+                return f"Your {word} query was:\n\n{user_queries[index]}"
+
+            return f"I only found {len(user_queries)} queries in this current chat."
+
+    return None
 
 
 def show_chat(user):
@@ -58,9 +96,9 @@ def show_chat(user):
     for message in st.session_state[chat_key]:
         with st.chat_message(message["role"]):
             if message["role"] == "assistant":
-                st.code(message["content"])  
+                st.code(message["content"])
             else:
-                st.markdown(message["content"])   
+                st.markdown(message["content"])
 
     user_input = st.chat_input("Ask about HR policies, leave, IT tickets, assets, or approvals...")
 
@@ -69,13 +107,29 @@ def show_chat(user):
         del st.session_state.selected_demo_query
 
     if user_input:
+        session_answer = answer_current_chat_query(
+            user_input,
+            st.session_state[chat_key],
+        )
+
         st.session_state[chat_key].append({
             "role": "user",
             "content": user_input,
         })
 
         with st.chat_message("user"):
-            st.write(user_input)
+            st.markdown(user_input)
+
+        if session_answer:
+            with st.chat_message("assistant"):
+                st.code(session_answer)
+
+            st.session_state[chat_key].append({
+                "role": "assistant",
+                "content": session_answer,
+            })
+
+            return
 
         recent_context = "\n".join(
             f"{msg['role']}: {msg['content']}"
@@ -99,7 +153,6 @@ Latest user message:
             "role": "assistant",
             "content": response,
         })
-
 
 def show_employee_view(user):
     st.subheader("👤 Employee View")
@@ -256,6 +309,32 @@ def show_analytics_panel():
     col4.metric("Open Tickets", analytics["open_tickets"])
     col5.metric("Asset Requests", analytics["total_assets"])
 
+def show_chat_logs_panel(user):
+    st.subheader("Chat History")
+
+    logs = get_user_chat_logs(user["user_id"], limit=20)
+
+    if not logs:
+        st.info("No chat history found.")
+        return
+
+    for log in logs:
+        st.markdown(f"**User:** {log['User Query']}")
+        st.code(log["Bot Response"])
+        st.caption(f"Time: {log['Time']}")
+        st.divider()
+
+def show_logs_panel(user):
+    st.subheader("📜 My Activity Logs")
+
+    logs = get_user_logs(user["user_id"])
+
+    if logs:
+        df = pd.DataFrame(logs)
+        st.dataframe(df, use_container_width=True)
+    else:
+        st.info("No logs found.")
+
 
 def main():
     st.title("Enterprise AI Copilot")
@@ -289,9 +368,16 @@ def main():
         if st.button("Clear Chat"):
             st.session_state[chat_key] = []
             st.rerun()
+        
+        #show_logs = st.checkbox("Show My Logs")
+        show_chat_logs = st.checkbox("Show Chat History")
 
     # ONLY CHAT — NO DASHBOARD
     show_chat(user)
+
+    if show_chat_logs:
+        st.divider()
+        show_chat_logs_panel(user)
 
 
 if __name__ == "__main__":

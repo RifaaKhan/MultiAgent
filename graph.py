@@ -305,9 +305,11 @@ def final_response_node(state: CopilotState) -> CopilotState:
     else:
         response_text = str(response)
 
+    latest_message = get_latest_user_message(state["message"])
+
     save_memory(
         user_id=state["user_id"],
-        user_message=state["message"],
+        user_message=latest_message,
         bot_response=response_text,
     )
 
@@ -326,7 +328,7 @@ def log_node(state: CopilotState) -> CopilotState:
 
     log_request(
         user_id=state["user_id"],
-        query=state["message"],
+        query=get_latest_user_message(state["message"]),
         intent=state.get("intent", "unknown"),
         agent_used=state.get("agent_used", "None"),
         tool_used=state.get("tool_used", "None"),

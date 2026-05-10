@@ -145,7 +145,7 @@ def build_vector_store() -> str:
     return f"Vector store created successfully with {len(texts)} chunks."
 
 
-def retrieve_policy_context(question: str, top_k: int = 3) -> Dict:
+def retrieve_policy_context(question: str, top_k: int = 7) -> Dict:
     """
     Retrieves top matching chunks from ChromaDB for the user question.
     """

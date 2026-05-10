@@ -916,6 +916,80 @@ def get_asset_request_owner(request_id):
         "email": row[2],
     }
 
+def get_user_queries(user_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT user_message
+        FROM chat_memory
+        WHERE user_id = ?
+        ORDER BY memory_id ASC
+    """, (user_id,))
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [row[0] for row in rows]
+
+def get_user_logs(user_id, limit=50):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT
+            query,
+            intent,
+            agent_used,
+            tool_used,
+            status,
+            response_time,
+            created_at
+        FROM logs
+        WHERE user_id = ?
+        ORDER BY log_id DESC
+        LIMIT ?
+    """, (user_id, limit))
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [
+        {
+            "Query": row[0],
+            "Intent": row[1],
+            "Agent": row[2],
+            "Tool": row[3],
+            "Status": row[4],
+            "Response Time": row[5],
+            "Timestamp": row[6],
+        }
+        for row in rows
+    ]
+
+def get_user_chat_logs(user_id, limit=20):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT user_message, bot_response, created_at
+        FROM chat_memory
+        WHERE user_id = ?
+        ORDER BY memory_id DESC
+        LIMIT ?
+    """, (user_id, limit))
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [
+        {
+            "User Query": row[0],
+            "Bot Response": row[1],
+            "Time": row[2],
+        }
+        for row in rows
+    ]
 
 def run_tests():
     print("\nTesting tools.py...\n")
