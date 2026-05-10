@@ -36,5 +36,9 @@ Rules:
 - If the user says they are not well, sick, ill, have fever, doctor visit, or medical appointment, treat it as apply_leave.
 - For health-related leave, use leave_type as sick.
 - If date is missing, keep start_date and end_date empty and ask for date.
+- If the user mentions party, function, family function, personal work, travel, wedding, or event, treat it as apply_leave with reason from the message.
+- Do not mark such messages as unknown if they imply time off.
+- Convert relative dates like today, tomorrow, and next Monday to YYYY-MM-DD based on current date.
+- If the user says "tomorrow" and leave type is missing, extract start_date and end_date as tomorrow and keep leave_type empty.
 - Do not answer directly.
 - Do not invent values.

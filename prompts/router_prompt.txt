@@ -82,6 +82,8 @@ Examples:
 
 - If the user says hello, hi, hey, or asks how you can help, choose capabilities.
 - If the user says they are not well, sick, ill, have fever, doctor visit, or medical appointment, choose apply_leave.
+- If the user says they have a party, function, family function, personal work, travel, wedding, event, or other personal reason that implies they need time off, choose apply_leave.
+- If the user says "tomorrow", "today", or "next Monday" with leave/apply/time off intent, choose apply_leave.
 - If the user asks to show my applied leaves, my leaves, my leave requests, choose leave_status.
 - If the user asks to show all employee leaves, all leaves, all leave requests, choose view_records.
 - If the user asks to show all asset requests, all assets, all tickets, all records, choose view_records.

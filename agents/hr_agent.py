@@ -53,17 +53,27 @@ def run_hr_agent(user: dict, message: str):
     latest_message = get_latest_user_message(message)
     latest_lower = latest_message.lower()
 
-    if "balance" in latest_lower or "remaining" in latest_lower:
+    # STRICT leave balance detection
+    balance_patterns = [
+        "my leave balance",
+        "remaining leaves",
+        "how many leaves do i have",
+        "my remaining leaves",
+    ]
+
+    if any(pattern in latest_lower for pattern in balance_patterns):
         return get_leave_balance_report(user_id=user["user_id"])
 
-    if (
-        "leave request" in latest_lower
-        or "leave requests" in latest_lower
-        or "applied leave" in latest_lower
-        or "applied leaves" in latest_lower
-        or "leave history" in latest_lower
-        or "my leaves" in latest_lower
-    ):
+    # STRICT leave status detection
+    leave_status_patterns = [
+        "my leave requests",
+        "my applied leaves",
+        "my leaves",
+        "leave history",
+        "check my leave status",
+    ]
+
+    if any(pattern in latest_lower for pattern in leave_status_patterns):
         return format_my_leaves(check_leave_status(user["user_id"]))
 
     llm = get_pro_model()
@@ -87,13 +97,27 @@ Conversation Context:
 
     action = parsed.get("action", "unknown")
 
+    # SAFETY FIX FOR MULTI-TURN LEAVE FLOW
+    ongoing_leave_context = (
+        "missing leave details" in message.lower()
+        or "i want a leave" in message.lower()
+        or "apply leave" in message.lower()
+    )
+
+    if action == "get_leave_balance" and ongoing_leave_context:
+        action = "apply_leave"
+
+    # LEAVE BALANCE
     if action == "get_leave_balance":
         return get_leave_balance_report(
             user_id=user["user_id"],
             leave_type=parsed.get("leave_type")
         )
 
+    # APPLY LEAVE
     if action == "apply_leave":
+
+        # AUTO ONE-DAY LEAVE
         if (
             parsed.get("start_date")
             and not parsed.get("end_date")
@@ -115,9 +139,11 @@ Conversation Context:
             reason=parsed.get("reason", "Not specified"),
         )
 
+    # LEAVE STATUS
     if action == "check_leave_status":
         return format_my_leaves(check_leave_status(user["user_id"]))
 
+    # CANCEL LEAVE
     if action == "cancel_leave":
         if not parsed.get("request_id"):
             return "Please provide the leave request ID to cancel."
