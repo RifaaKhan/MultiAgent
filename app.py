@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import re
 
 from graph import run_copilot
 from tools import (
@@ -32,41 +31,6 @@ def format_user_label(user):
 
 def get_user_chat_key(user_id):
     return f"messages_{user_id}"
-
-def answer_current_chat_query(user_input, chat_messages):
-    text = user_input.lower().strip()
-
-    if "query" not in text:
-        return None
-
-    user_queries = [
-        msg["content"]
-        for msg in chat_messages
-        if msg["role"] == "user"
-    ]
-
-    if not user_queries:
-        return "I do not see any previous queries in this current chat."
-
-    query_positions = {
-        "first": 0,
-        "second": 1,
-        "third": 2,
-        "fourth": 3,
-        "fifth": 4,
-    }
-
-    if re.search(r"\b(last|previous)\s+query\b", text):
-        return f"Your last query was:\n\n{user_queries[-1]}"
-
-    for word, index in query_positions.items():
-        if re.search(rf"\b{word}\s+query\b", text):
-            if len(user_queries) > index:
-                return f"Your {word} query was:\n\n{user_queries[index]}"
-
-            return f"I only found {len(user_queries)} queries in this current chat."
-
-    return None
 
 
 def show_chat(user):
@@ -100,17 +64,20 @@ def show_chat(user):
             else:
                 st.markdown(message["content"])
 
-    user_input = st.chat_input("Ask about HR policies, leave, IT tickets, assets, or approvals...")
+    user_input = st.chat_input(
+        "Ask about HR policies, leave, IT tickets, assets, or approvals..."
+    )
 
     if "selected_demo_query" in st.session_state:
         user_input = st.session_state.selected_demo_query
         del st.session_state.selected_demo_query
 
     if user_input:
-        session_answer = answer_current_chat_query(
-            user_input,
-            st.session_state[chat_key],
-        )
+        # Keep old chat history before adding the current user message.
+        # This is passed to the current_chat_query node so it can answer
+        # questions like "what was my previous query?" without counting
+        # the current question itself.
+        chat_session_before_current_message = list(st.session_state[chat_key])
 
         st.session_state[chat_key].append({
             "role": "user",
@@ -119,17 +86,6 @@ def show_chat(user):
 
         with st.chat_message("user"):
             st.markdown(user_input)
-
-        if session_answer:
-            with st.chat_message("assistant"):
-                st.code(session_answer)
-
-            st.session_state[chat_key].append({
-                "role": "assistant",
-                "content": session_answer,
-            })
-
-            return
 
         recent_context = "\n".join(
             f"{msg['role']}: {msg['content']}"
@@ -146,13 +102,18 @@ Latest user message:
 
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                response = run_copilot(user["user_id"], message_with_context)
+                response = run_copilot(
+                    user["user_id"],
+                    message_with_context,
+                    chat_session=chat_session_before_current_message,
+                )
                 st.code(response)
 
         st.session_state[chat_key].append({
             "role": "assistant",
             "content": response,
         })
+
 
 def show_employee_view(user):
     st.subheader("👤 Employee View")
@@ -227,7 +188,10 @@ def show_it_view(user):
 
         if ticket_ids:
             selected_ticket = st.selectbox("Select Ticket", ticket_ids)
-            selected_status = st.selectbox("New Status", ["Open", "In Progress", "Resolved", "Closed"])
+            selected_status = st.selectbox(
+                "New Status",
+                ["Open", "In Progress", "Resolved", "Closed"],
+            )
 
             if st.button("Update Ticket"):
                 result = update_ticket_status(selected_ticket, selected_status)
@@ -249,7 +213,10 @@ def show_admin_view(user):
     with st.form("add_employee_form"):
         new_user_id = st.text_input("User ID", placeholder="EMP002")
         new_name = st.text_input("Name")
-        new_role = st.selectbox("Role", ["Employee", "Manager", "HR Team", "IT Team", "Admin"])
+        new_role = st.selectbox(
+            "Role",
+            ["Employee", "Manager", "HR Team", "IT Team", "Admin"],
+        )
         new_department = st.text_input("Department")
         new_email = st.text_input("Email")
 
@@ -309,6 +276,7 @@ def show_analytics_panel():
     col4.metric("Open Tickets", analytics["open_tickets"])
     col5.metric("Asset Requests", analytics["total_assets"])
 
+
 def show_chat_logs_panel(user):
     st.subheader("Chat History")
 
@@ -323,6 +291,7 @@ def show_chat_logs_panel(user):
         st.code(log["Bot Response"])
         st.caption(f"Time: {log['Time']}")
         st.divider()
+
 
 def show_logs_panel(user):
     st.subheader("📜 My Activity Logs")
@@ -368,8 +337,7 @@ def main():
         if st.button("Clear Chat"):
             st.session_state[chat_key] = []
             st.rerun()
-        
-        #show_logs = st.checkbox("Show My Logs")
+
         show_chat_logs = st.checkbox("Show Chat History")
 
     # ONLY CHAT — NO DASHBOARD

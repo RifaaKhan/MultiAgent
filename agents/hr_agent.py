@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from llm_config import get_pro_model
 from prompt_loader import load_prompt
 from agents.agent_utils import extract_json
@@ -47,6 +49,18 @@ def should_auto_set_one_day_leave(latest_message: str) -> bool:
     ]
 
     return any(pattern in text for pattern in one_day_patterns)
+
+
+def resolve_today_tomorrow(latest_message: str):
+    text = latest_message.lower()
+
+    if "tomorrow" in text:
+        return (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+
+    if "today" in text:
+        return datetime.now().strftime("%Y-%m-%d")
+
+    return None
 
 
 def run_hr_agent(user: dict, message: str):
@@ -116,6 +130,16 @@ Conversation Context:
 
     # APPLY LEAVE
     if action == "apply_leave":
+
+        # SIMPLE RELATIVE DATE FALLBACK
+        relative_date = resolve_today_tomorrow(latest_message)
+
+        if relative_date:
+            if not parsed.get("start_date"):
+                parsed["start_date"] = relative_date
+
+            if not parsed.get("end_date"):
+                parsed["end_date"] = relative_date
 
         # AUTO ONE-DAY LEAVE
         if (

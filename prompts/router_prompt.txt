@@ -22,6 +22,7 @@ Allowed intents:
 17. view_records
 18. update_ticket
 19. delete_employee
+20. current_chat_query
 
 Return ONLY valid JSON.
 
@@ -91,4 +92,13 @@ Examples:
 - If the user asks about code of conduct, company rules, ethics, workplace behavior, discipline, compliance, or employee conduct, choose policy_question.
 - If the user asks dashboard/count/summary, choose analytics.
 - If the user asks what you can do, help, features, capabilities, or how you can assist, choose capabilities.
+- If the user asks about the current conversation, previous query, first query, last query, what they said earlier, what their name is based on this chat, or asks to recall something from the current chat session, choose current_chat_query.
+Examples:
+- what did I ask first
+- what was my previous question
+- what is my name
+- what did I say earlier
+- summarize this chat
+- what was my third query
+
 - If unsure, choose unknown.

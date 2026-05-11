@@ -66,6 +66,7 @@ def validate_role_before_tool(user: dict, intent: str) -> tuple[bool, str]:
         "asset_request",
         "unknown",
         "capabilities",
+        "current_chat_query"
     ]
 
     permissions = {

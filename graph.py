@@ -1,5 +1,5 @@
 import time
-from typing import TypedDict, Optional, Any
+from typing import TypedDict, Optional, Any, List, Dict
 
 from langgraph.graph import StateGraph, END
 
@@ -14,6 +14,7 @@ from agents.email_agent import generate_email_content
 from agents.admin_agent import run_admin_agent
 from agents.approval_agent import run_approval_agent
 from agents.records_agent import run_records_agent
+from agents.session_agent import answer_from_current_chat_session
 from middleware import (
     rate_limit_check,
     retry_llm_call,
@@ -35,6 +36,7 @@ class CopilotState(TypedDict, total=False):
     final_response: str
     error: Optional[str]
     start_time: float
+    chat_session: List[Dict[str, Any]]
 
 
 def get_latest_user_message(message: str) -> str:
@@ -294,6 +296,27 @@ def unknown_node(state: CopilotState) -> CopilotState:
         ),
     }
 
+def current_chat_node(state: CopilotState) -> CopilotState:
+    chat_session = state.get("chat_session", [])
+    latest_message = get_latest_user_message(state["message"])
+
+    chat_history = "\n".join(
+        f"{msg['role']}: {msg['content']}"
+        for msg in chat_session
+    )
+
+    response = answer_from_current_chat_session.invoke({
+        "question": latest_message,
+        "chat_history": chat_history,
+    })
+
+    return {
+        **state,
+        "response": response,
+        "agent_used": "Current Chat Session Agent",
+        "tool_used": "answer_from_current_chat_session",
+    }
+
 
 def final_response_node(state: CopilotState) -> CopilotState:
     response = state.get("response", state.get("final_response", ""))
@@ -386,6 +409,9 @@ def route_by_intent(state: CopilotState) -> str:
 
     if intent == "capabilities":
         return "capabilities"
+    
+    if intent == "current_chat_query":
+        return "current_chat_query"
 
     return "unknown"
 
@@ -407,6 +433,7 @@ def build_graph():
     graph.add_node("capabilities", capabilities_node)
     graph.add_node("admin_agent", admin_agent_node)
     graph.add_node("records_agent", records_agent_node)
+    graph.add_node("current_chat_node", current_chat_node)
 
     graph.add_node("final_response", final_response_node)
     graph.add_node("log", log_node)
@@ -458,6 +485,7 @@ def build_graph():
             "capabilities": "capabilities",
             "admin_agent": "admin_agent",
             "records_agent": "records_agent",
+            "current_chat_query": "current_chat_node"
         },
     )
 
@@ -471,6 +499,7 @@ def build_graph():
     graph.add_edge("capabilities", "final_response")
     graph.add_edge("admin_agent", "final_response")
     graph.add_edge("records_agent", "final_response")
+    graph.add_edge("current_chat_node", "final_response")
 
     graph.add_edge("final_response", "log")
     graph.add_edge("log", END)
@@ -481,10 +510,11 @@ def build_graph():
 copilot_graph = build_graph()
 
 
-def run_copilot(user_id: str, message: str) -> str:
+def run_copilot(user_id: str, message: str, chat_session=None) -> str:
     result = copilot_graph.invoke({
         "user_id": user_id,
         "message": message,
+        "chat_session": chat_session or [],
     })
 
     return result.get("final_response", "No response generated.")
