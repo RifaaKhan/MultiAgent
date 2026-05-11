@@ -23,22 +23,31 @@ JSON format:
 
 Rules:
 - Understand natural language dates like "29 April 2026" and convert to YYYY-MM-DD.
-- If the user mentions a single date using words like "on", "for one day", "for a day", or "one day off", set both start_date and end_date to that same date.
+- The system will provide Current Date in YYYY-MM-DD format.
+- Use Current Date to resolve relative date words.
+- If user says "today", set start_date as Current Date.
+- If user says "tomorrow", set start_date as Current Date + 1 day.
+- If user says "day after tomorrow", set start_date as Current Date + 2 days.
+- If user says "next Monday", "next Tuesday", "next Wednesday", "next Thursday", "next Friday", "next Saturday", or "next Sunday", calculate the correct upcoming date based on Current Date.
+- Always return dates in YYYY-MM-DD format.
+- If the user mentions a single date using words like "on", "today", "tomorrow", "day after tomorrow", "for one day", "for a day", or "one day off", set both start_date and end_date to that same date.
+- If the user asks for one-day leave using today, tomorrow, day after tomorrow, on a date, or for one day, set both start_date and end_date to the same date.
 - If the user uses "from" and "to", extract start_date and end_date separately.
 - If the latest message is incomplete, use the conversation context to fill missing details.
 - Leave type must be casual, sick, or earned.
 - If leave type is not mentioned, keep it empty.
 - If start date is not mentioned, keep it empty.
-- If end date is not mentioned but user says one day, use start_date as end_date.
+- If end date is not mentioned but user says one day or gives a single relative date, use start_date as end_date.
+- Do not leave start_date empty if the user gives a relative date that can be calculated from Current Date.
+- Do not invent dates if the user gives no date or relative date.
+- If the user says "tomorrow" and leave type is missing, extract start_date and end_date as tomorrow and keep leave_type empty.
 - If the user asks "how many sick leaves", "remaining sick leaves", or similar, set action as get_leave_balance and set leave_type as sick.
 - If the user asks "how many casual leaves", set action as get_leave_balance and set leave_type as casual.
 - If the user asks general leave balance, set action as get_leave_balance and leave_type can be empty.
 - If the user says they are not well, sick, ill, have fever, doctor visit, or medical appointment, treat it as apply_leave.
 - For health-related leave, use leave_type as sick.
-- If date is missing, keep start_date and end_date empty and ask for date.
 - If the user mentions party, function, family function, personal work, travel, wedding, or event, treat it as apply_leave with reason from the message.
 - Do not mark such messages as unknown if they imply time off.
-- Convert relative dates like today, tomorrow, and next Monday to YYYY-MM-DD based on current date.
-- If the user says "tomorrow" and leave type is missing, extract start_date and end_date as tomorrow and keep leave_type empty.
+- If date is missing and no relative date is available, keep start_date and end_date empty so the system can ask for date.
 - Do not answer directly.
 - Do not invent values.

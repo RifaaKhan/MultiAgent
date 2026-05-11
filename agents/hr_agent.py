@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from llm_config import get_pro_model
 from prompt_loader import load_prompt
@@ -15,6 +16,14 @@ def get_latest_user_message(message: str) -> str:
     if "Latest user message:" in message:
         return message.split("Latest user message:")[-1].strip()
     return message.strip()
+
+
+def get_current_date() -> str:
+    """
+    Gets today's date in Asia/Kolkata timezone.
+    No external API is used.
+    """
+    return datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
 
 
 def format_my_leaves(leaves):
@@ -46,26 +55,18 @@ def should_auto_set_one_day_leave(latest_message: str) -> bool:
         "for one day",
         "for a day",
         "one day off",
+        "today",
+        "tomorrow",
+        "day after tomorrow",
     ]
 
     return any(pattern in text for pattern in one_day_patterns)
 
 
-def resolve_today_tomorrow(latest_message: str):
-    text = latest_message.lower()
-
-    if "tomorrow" in text:
-        return (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
-
-    if "today" in text:
-        return datetime.now().strftime("%Y-%m-%d")
-
-    return None
-
-
 def run_hr_agent(user: dict, message: str):
     latest_message = get_latest_user_message(message)
     latest_lower = latest_message.lower()
+    current_date = get_current_date()
 
     # STRICT leave balance detection
     balance_patterns = [
@@ -95,6 +96,9 @@ def run_hr_agent(user: dict, message: str):
 
     prompt = f"""
 {prompt_template}
+
+Current Date:
+{current_date}
 
 User:
 {user}
@@ -130,16 +134,6 @@ Conversation Context:
 
     # APPLY LEAVE
     if action == "apply_leave":
-
-        # SIMPLE RELATIVE DATE FALLBACK
-        relative_date = resolve_today_tomorrow(latest_message)
-
-        if relative_date:
-            if not parsed.get("start_date"):
-                parsed["start_date"] = relative_date
-
-            if not parsed.get("end_date"):
-                parsed["end_date"] = relative_date
 
         # AUTO ONE-DAY LEAVE
         if (
