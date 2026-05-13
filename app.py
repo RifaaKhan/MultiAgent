@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 
 from graph import run_copilot
+from voice_input import transcribe_audio
 from tools import (
     get_all_users,
     get_user,
@@ -31,6 +32,50 @@ def format_user_label(user):
 
 def get_user_chat_key(user_id):
     return f"messages_{user_id}"
+
+
+def process_user_message(user, user_input, chat_key):
+    """
+    Common function to process both typed input and voice input.
+    This keeps the flow same for both input methods.
+    """
+
+    chat_session_before_current_message = list(st.session_state[chat_key])
+
+    st.session_state[chat_key].append({
+        "role": "user",
+        "content": user_input,
+    })
+
+    with st.chat_message("user"):
+        st.markdown(user_input)
+
+    recent_context = "\n".join(
+        f"{msg['role']}: {msg['content']}"
+        for msg in st.session_state[chat_key][-6:]
+    )
+
+    message_with_context = f"""
+Conversation context:
+{recent_context}
+
+Latest user message:
+{user_input}
+"""
+
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking..."):
+            response = run_copilot(
+                user["user_id"],
+                message_with_context,
+                chat_session=chat_session_before_current_message,
+            )
+            st.code(response)
+
+    st.session_state[chat_key].append({
+        "role": "assistant",
+        "content": response,
+    })
 
 
 def show_chat(user):
@@ -64,55 +109,81 @@ def show_chat(user):
             else:
                 st.markdown(message["content"])
 
-    user_input = st.chat_input(
+    typed_input = st.chat_input(
         "Ask about HR policies, leave, IT tickets, assets, or approvals..."
     )
+
+    voice_input_text = None
+
+    with st.expander("🎙️ Voice Input"):
+        audio_input = st.audio_input(
+            "Record your query",
+            key=f"audio_{user['user_id']}",
+        )
+
+        if audio_input is not None:
+            audio_bytes = audio_input.getvalue()
+
+            # Create a simple signature for the current audio.
+            # This helps us detect when a NEW recording is uploaded.
+            current_audio_signature = hash(audio_bytes)
+            previous_audio_signature = st.session_state.get("last_audio_signature")
+
+            if current_audio_signature != previous_audio_signature:
+                with st.spinner("Transcribing voice..."):
+                    transcribed_text = transcribe_audio(audio_input)
+
+                if transcribed_text:
+                    st.session_state["voice_text"] = transcribed_text
+                    st.session_state["edited_voice_text"] = transcribed_text
+                    st.session_state["last_audio_signature"] = current_audio_signature
+
+        if "voice_text" in st.session_state:
+            edited_voice_text = st.text_area(
+                "Transcribed text",
+                key="edited_voice_text",
+            )
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                send_voice = st.button("Send Voice Query")
+
+            with col2:
+                clear_voice = st.button("Clear Voice Text")
+
+            if send_voice:
+                voice_input_text = edited_voice_text
+
+                if "voice_text" in st.session_state:
+                    del st.session_state["voice_text"]
+
+                if "edited_voice_text" in st.session_state:
+                    del st.session_state["edited_voice_text"]
+
+                if "last_audio_signature" in st.session_state:
+                    del st.session_state["last_audio_signature"]
+
+            if clear_voice:
+                if "voice_text" in st.session_state:
+                    del st.session_state["voice_text"]
+
+                if "edited_voice_text" in st.session_state:
+                    del st.session_state["edited_voice_text"]
+
+                if "last_audio_signature" in st.session_state:
+                    del st.session_state["last_audio_signature"]
+
+                st.rerun()
+
+    user_input = typed_input or voice_input_text
 
     if "selected_demo_query" in st.session_state:
         user_input = st.session_state.selected_demo_query
         del st.session_state.selected_demo_query
 
     if user_input:
-        # Keep old chat history before adding the current user message.
-        # This is passed to the current_chat_query node so it can answer
-        # questions like "what was my previous query?" without counting
-        # the current question itself.
-        chat_session_before_current_message = list(st.session_state[chat_key])
-
-        st.session_state[chat_key].append({
-            "role": "user",
-            "content": user_input,
-        })
-
-        with st.chat_message("user"):
-            st.markdown(user_input)
-
-        recent_context = "\n".join(
-            f"{msg['role']}: {msg['content']}"
-            for msg in st.session_state[chat_key][-6:]
-        )
-
-        message_with_context = f"""
-Conversation context:
-{recent_context}
-
-Latest user message:
-{user_input}
-"""
-
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                response = run_copilot(
-                    user["user_id"],
-                    message_with_context,
-                    chat_session=chat_session_before_current_message,
-                )
-                st.code(response)
-
-        st.session_state[chat_key].append({
-            "role": "assistant",
-            "content": response,
-        })
+        process_user_message(user, user_input, chat_key)
 
 
 def show_employee_view(user):
@@ -336,6 +407,11 @@ def main():
 
         if st.button("Clear Chat"):
             st.session_state[chat_key] = []
+
+            for key in ["voice_text", "edited_voice_text", "last_audio_signature"]:
+                if key in st.session_state:
+                    del st.session_state[key]
+
             st.rerun()
 
         show_chat_logs = st.checkbox("Show Chat History")
